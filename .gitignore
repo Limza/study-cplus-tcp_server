@@ -1,0 +1,78 @@
+# Visual Studio 관련
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 빌드 출력 파일
+[Bb]in/
+[Oo]bj/
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.idb
+*.exp
+*.log
+*.pch
+*.obj
+*.ipch
+*.iobj
+*.iopt
+*.rsp
+*.tlog
+
+# 빌드 캐시 및 임시파일
+*.tmp
+*.cache
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+
+# CMake 관련 (Visual Studio에서 CMake 프로젝트 사용 시)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CMakeSettings.json
+
+# 기타 IDE 및 환경설정
+*.ncb
+*.aps
+*.psess
+*.vsp
+*.vspscc
+*.vssscc
+*.sbr
+*.class
+
+# 자동 생성된 파일
+*.ipdb
+*.iobj
+
+# 테스트 및 리포트 관련
+TestResults/
+*.coverage
+*.coveragexml
+
+# 기타 무시해야 할 것들
+*.log
+*.orig
+*.suo
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# 크래시 덤프
+*.dmp
+
+# 패키지 매니저 관련 (vcpkg 등)
+vcpkg_installed/
+packages/
+buildtrees/
+
+# 사용자 정의 폴더 (필요시 추가)
+# /custom_folder/
