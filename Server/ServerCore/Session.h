@@ -4,9 +4,6 @@
 #include "NetAddress.h"
 #include "RecvBuffer.h"
 
-using std::shared_ptr;
-using std::weak_ptr;
-
 class Service;
 
 /* ------------------------------
@@ -30,8 +27,8 @@ public:
 	void				Send(SendBufferRef sendBuffer);
 	bool				Connect();
 	void				Disconnect(const WCHAR* cause);
-	shared_ptr<Service> GetService() const { return _service.lock(); }
-	void				SetService(shared_ptr<Service>&& service) { _service = service; }
+	void				SetService(std::shared_ptr<Service> service) { _service = service; }
+	std::shared_ptr<Service> GetService() const { return _service.lock(); }
 
 public:
 	void		SetNetAddress(const NetAddress address);
@@ -64,7 +61,7 @@ private:
 	void	HandleError(int32 errorCode);
 	
 private:
-	weak_ptr<Service>	_service;
+	std::weak_ptr<Service>	_service;
 	SOCKET				_socket = INVALID_SOCKET;
 	NetAddress			_netAddress = {};
 	Atomic<bool>		_connected = false;
@@ -84,3 +81,7 @@ private:
 	SendEvent			_sendEvent;
 };
 
+
+/* ------------------------------
+ *	PacketSession
+ ------------------------------*/
