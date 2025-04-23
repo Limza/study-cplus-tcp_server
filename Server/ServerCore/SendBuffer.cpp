@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "SendBuffer.h"
 
 /* --------------------------------
@@ -69,7 +69,7 @@ SendBufferRef SendBufferManager::Open(const uint32 size)
 
 	ASSERT_CRASH(LSendBufferChunk->IsOpen() == false);
 
-	// ´Ù ›§À¸¸é ¹ö¸®°í »õ°Å·Î ±³Ã¼
+	// ë‹¤ ì»ìœ¼ë©´ ë²„ë¦¬ê³  ìƒˆê±°ë¡œ êµì²´
 	if (LSendBufferChunk->FreeSize() < size)
 	{
 		LSendBufferChunk = Pop(); // WRITE_LOCK;
@@ -83,6 +83,8 @@ SendBufferRef SendBufferManager::Open(const uint32 size)
 
 SendBufferChunkRef SendBufferManager::Pop()
 {
+	std::cout << "PopGlobal SendBufferChunk" << '\n';
+
 	{
 		WRITE_LOCK;
 		if (_sendBufferChunks.empty() == false)
@@ -104,5 +106,6 @@ void SendBufferManager::Push(SendBufferChunkRef buffer)
 
 void SendBufferManager::PushGlobal(SendBufferChunk* buffer)
 {
+	std::cout << "PushGlobal SendBufferChunk" << '\n';
 	GSendBufferManager->Push(SendBufferChunkRef(buffer, PushGlobal));
 }

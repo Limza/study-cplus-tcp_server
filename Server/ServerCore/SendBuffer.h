@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 class SendBufferChunk;
 
@@ -14,6 +14,7 @@ public:
 
 public:
 	[[nodiscard]] BYTE* Buffer() const { return _buffer; }
+	[[nodiscard]] uint32 AllocSize() const { return _allocSize; }
 	[[nodiscard]] uint32 WriteSize() const { return _writeSize; }
 
 	void Close(uint32 writeSize);

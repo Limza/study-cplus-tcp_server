@@ -1,16 +1,15 @@
 ﻿#include "pch.h"
 #include "Session.h"
-
-#include <chrono>
-
 #include "Service.h"
 #include "ThreadManager.h"
+#include "BufferReader.h"
+#include "ClientPacketHandler.h"
 
 using namespace std;
 
 char sendData[] = "Hello World";
 
-class ServerSession final : public Session
+class ServerSession final : public PacketSession
 {
 public:
 	~ServerSession() override
@@ -21,39 +20,22 @@ public:
 protected:
 	void OnConnected() override
 	{
-		cout << "Connected To Server" << '\n';
-
-		const SendBufferRef sendBuffer = GSendBufferManager->Open(4096);
-		::memcpy(sendBuffer->Buffer(), sendData, sizeof(sendData));
-		sendBuffer->Close(sizeof(sendData));
-
-		Send(sendBuffer);
+		// cout << "Connected To Server" << '\n';
 	}
 
-	void OnDisconnected() override
+	void OnRecvPacket(BYTE* buffer, const int32 len) override
 	{
-		cout << "Disconnected\n";
-	}
-
-	int32 OnRecv(BYTE* buffer, const int32 len) override
-	{
-		// Echo
-		cout << "OnRecv Len = " << len << '\n';
-
-		this_thread::sleep_for(1s);
-
-		const SendBufferRef sendBuffer = GSendBufferManager->Open(4096);
-		::memcpy(sendBuffer->Buffer(), sendData, sizeof(sendData));
-		sendBuffer->Close(sizeof(sendData));
-
-		Send(sendBuffer);
-
-		return len;
+		ClientPacketHandler::HandlePacket(buffer, len);
 	}
 
 	void OnSend(const int32 len) override
 	{
-		cout << "OnSend Len = " << len << '\n';
+		// cout << "OnSend Len = " << len << '\n';
+	}
+
+	void OnDisconnected() override
+	{
+		// cout << "Disconnected\n";
 	}
 };
 
@@ -65,7 +47,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777)
 		, MakeShared<IocpCore>()
 		, MakeShared<ServerSession>,
-		5);
+		1);
 
 	ASSERT_CRASH(service->Start());
 

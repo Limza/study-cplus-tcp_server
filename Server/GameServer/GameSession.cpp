@@ -1,6 +1,9 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "GameSession.h"
 #include "GameSessionManager.h"
+#include "ServerPacketHandler.h"
+
+using namespace std;
 
 void GameSession::OnConnected()
 {
@@ -16,21 +19,11 @@ void GameSession::OnDisconnected()
 	);
 }
 
-int32 GameSession::OnRecv(BYTE* buffer, const int32 len)
+void GameSession::OnRecvPacket(BYTE* buffer, const int32 len)
 {
-	// Echo
-	std::cout << "OnRecv Len = " << len << '\n';
-
-	const SendBufferRef sendBuffer = GSendBufferManager->Open(4096);
-	::memcpy(sendBuffer->Buffer(), buffer, len);
-	sendBuffer->Close(len);
-
-	GSessionManager.Broadcast(sendBuffer);
-
-	return len;
+	ServerPacketHandler::HandlePacket(buffer, len);
 }
 
 void GameSession::OnSend(const int32 len)
 {
-	std::cout << "OnSend Len = " << len << '\n';
 }

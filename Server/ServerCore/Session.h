@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "IocpCore.h"
 #include "IocpEvent.h"
 #include "NetAddress.h"
@@ -11,7 +11,7 @@ class Service;
  ------------------------------*/
 class Session : public IocpObject
 {
-	// core ¾È¿¡¼­¸¸ Á¢±ÙÇÒ ¼ö ÀÖµµ·Ï
+	// core ì•ˆì—ì„œë§Œ ì ‘ê·¼í•  ìˆ˜ ìˆë„ë¡
 	friend class Listener;
 	friend class IocpCore;
 	friend class Service;
@@ -85,3 +85,26 @@ private:
 /* ------------------------------
  *	PacketSession
  ------------------------------*/
+
+struct PacketHeader
+{
+	uint16 size = 0;
+	uint16 id = 0; // í”„ë¡œí† ì½œ ID
+};
+
+class PacketSession : public Session
+{
+public:
+	PacketSession();
+	~PacketSession() override;
+	NON_COPYABLE_CLASS(PacketSession);
+
+	PacketSessionRef GetPacketSessionRef()
+	{
+		return std::static_pointer_cast<PacketSession>(shared_from_this());
+	}
+
+protected:
+	int32 OnRecv(BYTE* buffer, const int32 len) final;
+	virtual void OnRecvPacket(BYTE* buffer, const int32 len) = 0;
+};

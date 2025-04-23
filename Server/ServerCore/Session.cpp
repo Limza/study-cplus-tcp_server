@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "Session.h"
 
 #include "Service.h"
@@ -50,9 +50,6 @@ void Session::Disconnect(const WCHAR* cause)
 	// TEMP
 	std::wcout << L"Disconnect : " << cause << '\n';
 
-	OnDisconnected();
-	GetService()->ReleaseSession(GetSessionRef());
-
 	RegisterDisConnect();
 }
 
@@ -100,7 +97,7 @@ bool Session::RegisterConnect()
 	if (SocketUtils::SetReuseAddress(_socket, true) == false)
 		return false;
 
-	if (SocketUtils::BindAnyAddress(_socket, /*³²´Â Æ÷Æ® ¾Æ¹«°Å³ª*/0) == false)
+	if (SocketUtils::BindAnyAddress(_socket,  /*ë‚¨ëŠ” í¬íŠ¸ ì•„ë¬´ê±°ë‚˜*/0) == false)
 		return false;
 
 	_connectEvent.Init();
@@ -178,11 +175,11 @@ void Session::RegisterSend()
 	_sendEvent.Init();
 	_sendEvent.SetOwner(shared_from_this()); // ADD_REF
 
-	// º¸³¾ µ¥ÀÌÅÍ¸¦ sendEvent¿¡ µî·Ï
+	// ë³´ë‚¼ ë°ì´í„°ë¥¼ sendEventì— ë“±ë¡
 	{
 		WRITE_LOCK;
 
-		int32 writeSize = 0;
+		uint32 writeSize = 0;
 		while (_sendQueue.empty() == false)
 		{
 			SendBufferRef sendBuffer = _sendQueue.front();
@@ -236,6 +233,9 @@ void Session::ProcessConnect()
 void Session::ProcessDisConnect()
 {
 	_disConnectEvent.SetOwner(nullptr); // RELEASE_REF
+
+	OnDisconnected();
+	GetService()->ReleaseSession(GetSessionRef());
 }
 
 void Session::ProcessRecv(const int32 numOfBytes)
@@ -255,8 +255,8 @@ void Session::ProcessRecv(const int32 numOfBytes)
 	}
 
 	const int32 dataSize = _recvBuffer.DataSize();
-	if (const int32 processLen = OnRecv(_recvBuffer.ReadPos(), dataSize); 
-		processLen < 0 || dataSize < processLen || _recvBuffer.OnRead(processLen) == false)
+	const int32 processLen = OnRecv(_recvBuffer.ReadPos(), dataSize);
+	if (processLen < 0 || dataSize < processLen || _recvBuffer.OnRead(processLen) == false)
 	{
 		Disconnect(L"OnRead Overflow");
 		return;
@@ -299,4 +299,40 @@ void Session::HandleError(const int32 errorCode)
 			std::cout << "Handle Error : " << errorCode << '\n';
 			break;
 	}
+}
+
+
+/* ------------------------------
+ *	PacketSession
+ ------------------------------*/
+
+PacketSession::PacketSession()
+= default;
+
+PacketSession::~PacketSession()
+= default;
+
+// [size][id][data..][size]...
+int32 PacketSession::OnRecv(BYTE* buffer, const int32 len)
+{
+	int32 processLen = 0;
+
+	while (true)
+	{
+		const int32 dataSize = len - processLen;
+		// ìµœì†Œí•œ í—¤ë”ëŠ” íŒŒì‹±í•  ìˆ˜ ìžˆì–´ì•¼ í•œë‹¤
+		if (dataSize < sizeof(PacketHeader))  // NOLINT(clang-diagnostic-sign-compare)
+			break;
+
+		const auto [size, id] = *(reinterpret_cast<PacketHeader*>(&buffer[processLen]));
+		if (dataSize < size)  // NOLINT(modernize-use-integer-sign-comparison)
+			break;
+
+		// íŒ¨í‚· ì¡°ë¦½ ì„±ê³µ
+		OnRecvPacket(&buffer[0], size);
+
+		processLen += size;
+	}
+
+	return processLen;
 }

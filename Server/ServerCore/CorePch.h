@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Types.h"
 #include "CoreMacro.h"
@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <iostream>
 #include <cassert>
+#include <chrono>
 
 #include <WinSock2.h>
 #include <MSWSock.h>
@@ -20,3 +21,4 @@
 #include "TypeCast.h"
 #include "Memory.h"
 #include "SendBuffer.h"
+#include "Session.h"
