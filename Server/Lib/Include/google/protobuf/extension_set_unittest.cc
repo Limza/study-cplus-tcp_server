@@ -1,60 +1,69 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
 //
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file or at
-// https://developers.google.com/open-source/licenses/bsd
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Author: kenton@google.com (Kenton Varda)
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
-#include "google/protobuf/extension_set.h"
-
-#include <algorithm>
-#include <cstdint>
-#include <string>
-
-#include "google/protobuf/descriptor.pb.h"
+#include <google/protobuf/stubs/casts.h>
+#include <google/protobuf/stubs/strutil.h>
+#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/stubs/common.h>
+#include <google/protobuf/test_util.h>
+#include <google/protobuf/test_util2.h>
+#include <google/protobuf/unittest.pb.h>
+#include <google/protobuf/unittest_mset.pb.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/descriptor.pb.h>
+#include <google/protobuf/arena.h>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/dynamic_message.h>
+#include <google/protobuf/extension_set.h>
+#include <google/protobuf/wire_format.h>
+#include <google/protobuf/testing/googletest.h>
 #include <gtest/gtest.h>
-#include "absl/base/casts.h"
-#include "absl/strings/cord.h"
-#include "absl/strings/match.h"
-#include "google/protobuf/arena.h"
-#include "google/protobuf/cpp_features.pb.h"
-#include "google/protobuf/descriptor.h"
-#include "google/protobuf/dynamic_message.h"
-#include "google/protobuf/io/coded_stream.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "google/protobuf/message_lite.h"
-#include "google/protobuf/port.h"
-#include "google/protobuf/test_util.h"
-#include "google/protobuf/test_util2.h"
-#include "google/protobuf/text_format.h"
-#include "google/protobuf/unittest.pb.h"
-#include "google/protobuf/unittest_mset.pb.h"
-#include "google/protobuf/unittest_mset_wire_format.pb.h"
-#include "google/protobuf/unittest_proto3_extensions.pb.h"
-#include "google/protobuf/wire_format.h"
-#include "google/protobuf/wire_format_lite.h"
-
+#include <google/protobuf/stubs/stl_util.h>
 
 // Must be included last.
-#include "google/protobuf/port_def.inc"
+#include <google/protobuf/port_def.inc>
+
 
 namespace google {
 namespace protobuf {
-
-
 namespace internal {
-
-extern bool fully_verify_message_sets_opt_out;
-
 namespace {
 
 using TestUtil::EqualsToSerialized;
 
-// This test closely mirrors google/protobuf/compiler/cpp/unittest.cc
+// This test closely mirrors net/proto2/compiler/cpp/internal/unittest.cc
 // except that it uses extensions rather than regular fields.
 
 TEST(ExtensionSetTest, Defaults) {
@@ -97,6 +106,20 @@ TEST(ExtensionSetTest, Clear) {
   TestUtil::SetAllExtensions(&message);
   message.Clear();
   TestUtil::ExpectExtensionsClear(message);
+
+  // Unlike with the defaults test, we do NOT expect that requesting embedded
+  // messages will return a pointer to the default instance.  Instead, they
+  // should return the objects that were created when mutable_blah() was
+  // called.
+  EXPECT_NE(&unittest::OptionalGroup_extension::default_instance(),
+            &message.GetExtension(unittest::optionalgroup_extension));
+  EXPECT_NE(&unittest::TestAllTypes::NestedMessage::default_instance(),
+            &message.GetExtension(unittest::optional_nested_message_extension));
+  EXPECT_NE(
+      &unittest::ForeignMessage::default_instance(),
+      &message.GetExtension(unittest::optional_foreign_message_extension));
+  EXPECT_NE(&unittest_import::ImportMessage::default_instance(),
+            &message.GetExtension(unittest::optional_import_message_extension));
 
   // Make sure setting stuff again after clearing works.  (This takes slightly
   // different code paths since the objects are reused.)
@@ -147,7 +170,7 @@ TEST(ExtensionSetTest, SetAllocatedExtension) {
   message.SetAllocatedExtension(unittest::optional_foreign_message_extension,
                                 new unittest::ForeignMessage());
 
-  // SetAllocatedExtension with nullptr is equivalent to ClearExtension.
+  // SetAllocatedExtension with nullptr is equivalent to ClearExtenion.
   message.SetAllocatedExtension(unittest::optional_foreign_message_extension,
                                 nullptr);
   EXPECT_FALSE(
@@ -188,7 +211,7 @@ TEST(ExtensionSetTest, ReleaseExtension) {
 TEST(ExtensionSetTest, ArenaUnsafeArenaSetAllocatedAndRelease) {
   Arena arena;
   unittest::TestAllExtensions* message =
-      Arena::Create<unittest::TestAllExtensions>(&arena);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena);
   unittest::ForeignMessage extension;
   message->UnsafeArenaSetAllocatedExtension(
       unittest::optional_foreign_message_extension, &extension);
@@ -234,7 +257,7 @@ TEST(ExtensionSetTest, UnsafeArenaSetAllocatedAndRelease) {
 TEST(ExtensionSetTest, ArenaUnsafeArenaReleaseOfHeapAlloc) {
   Arena arena;
   unittest::TestAllExtensions* message =
-      Arena::Create<unittest::TestAllExtensions>(&arena);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena);
   unittest::ForeignMessage* extension = new unittest::ForeignMessage;
   message->SetAllocatedExtension(unittest::optional_foreign_message_extension,
                                  extension);
@@ -365,7 +388,7 @@ TEST(ExtensionSetTest, SwapExtensionBothFull) {
 TEST(ExtensionSetTest, ArenaSetAllExtension) {
   Arena arena1;
   unittest::TestAllExtensions* message1 =
-      Arena::Create<unittest::TestAllExtensions>(&arena1);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena1);
   TestUtil::SetAllExtensions(message1);
   TestUtil::ExpectAllExtensionsSet(*message1);
 }
@@ -373,7 +396,7 @@ TEST(ExtensionSetTest, ArenaSetAllExtension) {
 TEST(ExtensionSetTest, ArenaCopyConstructor) {
   Arena arena1;
   unittest::TestAllExtensions* message1 =
-      Arena::Create<unittest::TestAllExtensions>(&arena1);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena1);
   TestUtil::SetAllExtensions(message1);
   unittest::TestAllExtensions message2(*message1);
   arena1.Reset();
@@ -383,7 +406,7 @@ TEST(ExtensionSetTest, ArenaCopyConstructor) {
 TEST(ExtensionSetTest, ArenaMergeFrom) {
   Arena arena1;
   unittest::TestAllExtensions* message1 =
-      Arena::Create<unittest::TestAllExtensions>(&arena1);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena1);
   TestUtil::SetAllExtensions(message1);
   unittest::TestAllExtensions message2;
   message2.MergeFrom(*message1);
@@ -391,50 +414,10 @@ TEST(ExtensionSetTest, ArenaMergeFrom) {
   TestUtil::ExpectAllExtensionsSet(message2);
 }
 
-TEST(ExtensionSetTest, ArenaMergeFromWithClearedExtensions) {
-  Arena arena;
-  {
-    auto* message1 = Arena::Create<unittest::TestAllExtensions>(&arena);
-    auto* message2 = Arena::Create<unittest::TestAllExtensions>(&arena);
-
-    // Set an extension and then clear it
-    message1->SetExtension(unittest::optional_int32_extension, 1);
-    message1->ClearExtension(unittest::optional_int32_extension);
-
-    // Since all extensions in message1 have been cleared, we should be able to
-    // merge it into message2 without allocating any additional memory.
-    uint64_t space_used_before_merge = arena.SpaceUsed();
-    message2->MergeFrom(*message1);
-    EXPECT_EQ(space_used_before_merge, arena.SpaceUsed());
-  }
-  {
-    // As more complicated case, let's have message1 and message2 share some
-    // uncleared extensions in common.
-    auto* message1 = Arena::Create<unittest::TestAllExtensions>(&arena);
-    auto* message2 = Arena::Create<unittest::TestAllExtensions>(&arena);
-
-    // Set int32 and uint32 on both messages.
-    message1->SetExtension(unittest::optional_int32_extension, 1);
-    message2->SetExtension(unittest::optional_int32_extension, 2);
-    message1->SetExtension(unittest::optional_uint32_extension, 1);
-    message2->SetExtension(unittest::optional_uint32_extension, 2);
-
-    // Set and clear int64 and uint64 on message1.
-    message1->SetExtension(unittest::optional_int64_extension, 0);
-    message1->ClearExtension(unittest::optional_int64_extension);
-    message1->SetExtension(unittest::optional_uint64_extension, 0);
-    message1->ClearExtension(unittest::optional_uint64_extension);
-
-    uint64_t space_used_before_merge = arena.SpaceUsed();
-    message2->MergeFrom(*message1);
-    EXPECT_EQ(space_used_before_merge, arena.SpaceUsed());
-  }
-}
-
 TEST(ExtensionSetTest, ArenaSetAllocatedMessageAndRelease) {
   Arena arena;
   unittest::TestAllExtensions* message =
-      Arena::Create<unittest::TestAllExtensions>(&arena);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena);
   EXPECT_FALSE(
       message->HasExtension(unittest::optional_foreign_message_extension));
   // Add a extension using SetAllocatedExtension
@@ -458,9 +441,9 @@ TEST(ExtensionSetTest, SwapExtensionBothFullWithArena) {
   std::unique_ptr<Arena> arena2(new Arena());
 
   unittest::TestAllExtensions* message1 =
-      Arena::Create<unittest::TestAllExtensions>(&arena1);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena1);
   unittest::TestAllExtensions* message2 =
-      Arena::Create<unittest::TestAllExtensions>(arena2.get());
+      Arena::CreateMessage<unittest::TestAllExtensions>(arena2.get());
 
   TestUtil::SetAllExtensions(message1);
   TestUtil::SetAllExtensions(message2);
@@ -480,9 +463,9 @@ TEST(ExtensionSetTest, SwapExtensionBothFullWithArena) {
   Arena arena3, arena4;
 
   unittest::TestAllExtensions* message3 =
-      Arena::Create<unittest::TestAllExtensions>(&arena3);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena3);
   unittest::TestAllExtensions* message4 =
-      Arena::Create<unittest::TestAllExtensions>(&arena4);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena4);
   TestUtil::SetAllExtensions(message3);
   message3->Swap(message4);
   arena3.Reset();
@@ -494,9 +477,9 @@ TEST(ExtensionSetTest, SwapFieldsOfExtensionBothFullWithArena) {
   Arena* arena2 = new Arena();
 
   unittest::TestAllExtensions* message1 =
-      Arena::Create<unittest::TestAllExtensions>(&arena1);
+      Arena::CreateMessage<unittest::TestAllExtensions>(&arena1);
   unittest::TestAllExtensions* message2 =
-      Arena::Create<unittest::TestAllExtensions>(arena2);
+      Arena::CreateMessage<unittest::TestAllExtensions>(arena2);
 
   TestUtil::SetAllExtensions(message1);
   TestUtil::SetAllExtensions(message2);
@@ -537,7 +520,7 @@ TEST(ExtensionSetTest, SerializationToArray) {
   size_t size = source.ByteSizeLong();
   std::string data;
   data.resize(size);
-  uint8_t* target = reinterpret_cast<uint8_t*>(&data[0]);
+  uint8_t* target = reinterpret_cast<uint8_t*>(::google::protobuf::string_as_array(&data));
   uint8_t* end = source.SerializeWithCachedSizesToArray(target);
   EXPECT_EQ(size, end - target);
   EXPECT_TRUE(destination.ParseFromString(data));
@@ -559,7 +542,7 @@ TEST(ExtensionSetTest, SerializationToStream) {
   std::string data;
   data.resize(size);
   {
-    io::ArrayOutputStream array_stream(&data[0], size, 1);
+    io::ArrayOutputStream array_stream(::google::protobuf::string_as_array(&data), size, 1);
     io::CodedOutputStream output_stream(&array_stream);
     source.SerializeWithCachedSizes(&output_stream);
     ASSERT_FALSE(output_stream.HadError());
@@ -581,7 +564,7 @@ TEST(ExtensionSetTest, PackedSerializationToArray) {
   size_t size = source.ByteSizeLong();
   std::string data;
   data.resize(size);
-  uint8_t* target = reinterpret_cast<uint8_t*>(&data[0]);
+  uint8_t* target = reinterpret_cast<uint8_t*>(::google::protobuf::string_as_array(&data));
   uint8_t* end = source.SerializeWithCachedSizesToArray(target);
   EXPECT_EQ(size, end - target);
   EXPECT_TRUE(destination.ParseFromString(data));
@@ -603,7 +586,7 @@ TEST(ExtensionSetTest, PackedSerializationToStream) {
   std::string data;
   data.resize(size);
   {
-    io::ArrayOutputStream array_stream(&data[0], size, 1);
+    io::ArrayOutputStream array_stream(::google::protobuf::string_as_array(&data), size, 1);
     io::CodedOutputStream output_stream(&array_stream);
     source.SerializeWithCachedSizes(&output_stream);
     ASSERT_FALSE(output_stream.HadError());
@@ -684,7 +667,7 @@ TEST(ExtensionSetTest, PackedToUnpackedParsing) {
   // Make sure we can add extensions.
   destination.AddExtension(unittest::unpacked_int32_extension, 1);
   destination.AddExtension(unittest::unpacked_enum_extension,
-                           proto2_unittest::FOREIGN_BAR);
+                           protobuf_unittest::FOREIGN_BAR);
 }
 
 TEST(ExtensionSetTest, UnpackedToPackedParsing) {
@@ -708,7 +691,7 @@ TEST(ExtensionSetTest, UnpackedToPackedParsing) {
   // Make sure we can add extensions.
   destination.AddExtension(unittest::packed_int32_extension, 1);
   destination.AddExtension(unittest::packed_enum_extension,
-                           proto2_unittest::FOREIGN_BAR);
+                           protobuf_unittest::FOREIGN_BAR);
 }
 
 TEST(ExtensionSetTest, IsInitialized) {
@@ -817,7 +800,8 @@ TEST(ExtensionSetTest, SpaceUsedExcludingSelf) {
 
   // Repeated primitive extensions will increase space used by at least a
   // RepeatedField<T>, and will cause additional allocations when the array
-  // gets too big for the initial space.
+  // gets too big for the initial space.  Note, we explicitly allocate on the
+  // heap to avoid message-owned arenas.
   // This macro:
   //   - Adds a value to the repeated extension, then clears it, establishing
   //     the base size.
@@ -828,7 +812,7 @@ TEST(ExtensionSetTest, SpaceUsedExcludingSelf) {
 #define TEST_REPEATED_EXTENSIONS_SPACE_USED(type, cpptype, value)              \
   do {                                                                         \
     std::unique_ptr<unittest::TestAllExtensions> message(                      \
-        Arena::Create<unittest::TestAllExtensions>(nullptr));                  \
+        Arena::CreateMessage<unittest::TestAllExtensions>(nullptr));           \
     const size_t base_size = message->SpaceUsedLong();                         \
     size_t min_expected_size = sizeof(RepeatedField<cpptype>) + base_size;     \
     message->AddExtension(unittest::repeated_##type##_extension, value);       \
@@ -841,12 +825,8 @@ TEST(ExtensionSetTest, SpaceUsedExcludingSelf) {
     const size_t old_capacity =                                                \
         message->GetRepeatedExtension(unittest::repeated_##type##_extension)   \
             .Capacity();                                                       \
-    if (sizeof(cpptype) > 1) {                                                 \
-      EXPECT_GE(                                                               \
-          old_capacity,                                                        \
-          (RepeatedFieldLowerClampLimit<cpptype, std::max(sizeof(cpptype),     \
-                                                          sizeof(void*))>())); \
-    }                                                                          \
+    EXPECT_GE(old_capacity,                                                    \
+              (RepeatedFieldLowerClampLimit<cpptype, sizeof(void*)>()));       \
     for (int i = 0; i < 16; ++i) {                                             \
       message->AddExtension(unittest::repeated_##type##_extension, value);     \
     }                                                                          \
@@ -879,7 +859,7 @@ TEST(ExtensionSetTest, SpaceUsedExcludingSelf) {
   // Repeated strings
   {
     std::unique_ptr<unittest::TestAllExtensions> message(
-        Arena::Create<unittest::TestAllExtensions>(nullptr));
+        Arena::CreateMessage<unittest::TestAllExtensions>(nullptr));
     const size_t base_size = message->SpaceUsedLong();
     size_t min_expected_size =
         sizeof(RepeatedPtrField<std::string>) + base_size;
@@ -898,7 +878,7 @@ TEST(ExtensionSetTest, SpaceUsedExcludingSelf) {
   // Repeated messages
   {
     std::unique_ptr<unittest::TestAllExtensions> message(
-        Arena::Create<unittest::TestAllExtensions>(nullptr));
+        Arena::CreateMessage<unittest::TestAllExtensions>(nullptr));
     const size_t base_size = message->SpaceUsedLong();
     size_t min_expected_size =
         sizeof(RepeatedPtrField<unittest::ForeignMessage>) + base_size;
@@ -1062,7 +1042,7 @@ TEST(ExtensionSetTest, RepeatedFields) {
                .MutableRepeatedExtension(unittest::repeated_string_extension)
                ->end();
        string_iter != string_end; ++string_iter) {
-    string_iter->append("test");
+    *string_iter += "test";
   }
   RepeatedPtrField<std::string>::const_iterator string_const_iter;
   RepeatedPtrField<std::string>::const_iterator string_const_end;
@@ -1176,25 +1156,22 @@ TEST(ExtensionSetTest, AbsentExtension) {
                 .bb());
 }
 
-#if GTEST_HAS_DEATH_TEST
+#ifdef PROTOBUF_HAS_DEATH_TEST
 
 TEST(ExtensionSetTest, InvalidEnumDeath) {
   unittest::TestAllExtensions message;
   EXPECT_DEBUG_DEATH(
       message.SetExtension(unittest::optional_foreign_enum_extension,
                            static_cast<unittest::ForeignEnum>(53)),
-      "ValidateEnum");
+      "IsValid");
 }
 
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // PROTOBUF_HAS_DEATH_TEST
 
 TEST(ExtensionSetTest, DynamicExtensions) {
   // Test adding a dynamic extension to a compiled-in message object.
 
   FileDescriptorProto dynamic_proto;
-  unittest::TestDynamicExtensions::descriptor()->file()->CopyHeadingTo(
-      &dynamic_proto);
-  dynamic_proto.clear_dependency();
   dynamic_proto.set_name("dynamic_extensions_test.proto");
   dynamic_proto.add_dependency(
       unittest::TestAllExtensions::descriptor()->file()->name());
@@ -1222,11 +1199,10 @@ TEST(ExtensionSetTest, DynamicExtensions) {
 
     // If the field refers to one of the types nested in TestDynamicExtensions,
     // make it refer to the type in our dynamic proto instead.
-    std::string prefix =
-        absl::StrCat(".", template_descriptor->full_name(), ".");
+    std::string prefix = "." + template_descriptor->full_name() + ".";
     if (extension->has_type_name()) {
       std::string* type_name = extension->mutable_type_name();
-      if (absl::StartsWith(*type_name, prefix)) {
+      if (HasPrefixString(*type_name, prefix)) {
         type_name->replace(0, prefix.size(), ".dynamic_extensions.");
       }
     }
@@ -1283,8 +1259,6 @@ TEST(ExtensionSetTest, DynamicExtensions) {
   }
 
   // Can we print it?
-  std::string message_text;
-  TextFormat::PrintToString(message, &message_text);
   EXPECT_EQ(
       "[dynamic_extensions.scalar_extension]: 123\n"
       "[dynamic_extensions.enum_extension]: FOREIGN_BAR\n"
@@ -1303,7 +1277,7 @@ TEST(ExtensionSetTest, DynamicExtensions) {
       "[dynamic_extensions.packed_extension]: -78\n"
       "2002: 12345\n"
       "54321: \"unknown\"\n",
-      message_text);
+      message.DebugString());
 
   // Can we serialize it?
   EXPECT_TRUE(
@@ -1328,7 +1302,11 @@ TEST(ExtensionSetTest, DynamicExtensions) {
     const Message& sub_message =
         message.GetReflection()->GetMessage(message, message_extension);
     const unittest::ForeignMessage* typed_sub_message =
-        google::protobuf::DynamicCastMessage<unittest::ForeignMessage>(&sub_message);
+#if PROTOBUF_RTTI
+        dynamic_cast<const unittest::ForeignMessage*>(&sub_message);
+#else
+        static_cast<const unittest::ForeignMessage*>(&sub_message);
+#endif
     ASSERT_TRUE(typed_sub_message != nullptr);
     EXPECT_EQ(456, typed_sub_message->c());
   }
@@ -1348,72 +1326,11 @@ TEST(ExtensionSetTest, DynamicExtensions) {
   }
 }
 
-TEST(ExtensionSetTest, Proto3PackedDynamicExtensions) {
-  // Regression test for b/271121265. This test case verifies that
-  // packed-by-default repeated custom options in proto3 are correctly
-  // serialized in packed form when dynamic extensions are used.
-
-  // Create a custom option in proto3 and load this into an overlay
-  // DescriptorPool with a DynamicMessageFactory.
-  google::protobuf::FileDescriptorProto file_descriptor_proto;
-  file_descriptor_proto.set_syntax("proto3");
-  file_descriptor_proto.set_name(
-      "google/protobuf/unittest_proto3_packed_extension.proto");
-  file_descriptor_proto.set_package("proto3_unittest");
-  file_descriptor_proto.add_dependency(
-      DescriptorProto::descriptor()->file()->name());
-  FieldDescriptorProto* extension = file_descriptor_proto.add_extension();
-  extension->set_name("repeated_int32_option");
-  extension->set_extendee(MessageOptions().GetTypeName());
-  extension->set_number(50009);
-  extension->set_label(FieldDescriptorProto::LABEL_REPEATED);
-  extension->set_type(FieldDescriptorProto::TYPE_INT32);
-  extension->set_json_name("repeatedInt32Option");
-  google::protobuf::DescriptorPool pool(DescriptorPool::generated_pool());
-  ASSERT_NE(pool.BuildFile(file_descriptor_proto), nullptr);
-  DynamicMessageFactory factory;
-  factory.SetDelegateToGeneratedFactory(true);
-
-  // Create a serialized MessageOptions proto equivalent to:
-  // [proto3_unittest.repeated_int32_option]: 1
-  UnknownFieldSet unknown_fields;
-  unknown_fields.AddVarint(50009, 1);
-  std::string serialized_options;
-  ASSERT_TRUE(unknown_fields.SerializeToString(&serialized_options));
-
-  // Parse the MessageOptions using our custom extension registry.
-  io::ArrayInputStream input_stream(serialized_options.data(),
-                                    serialized_options.size());
-  io::CodedInputStream coded_stream(&input_stream);
-  coded_stream.SetExtensionRegistry(&pool, &factory);
-  MessageOptions message_options;
-  ASSERT_TRUE(message_options.ParseFromCodedStream(&coded_stream));
-
-  // Finally, serialize the proto again and verify that the repeated option has
-  // been correctly serialized in packed form.
-  std::string reserialized_options;
-  ASSERT_TRUE(message_options.SerializeToString(&reserialized_options));
-  EXPECT_EQ(reserialized_options, "\xca\xb5\x18\x01\x01");
-}
-
-TEST(ExtensionSetTest, Proto3ExtensionPresenceSingular) {
-  using protobuf_unittest::Proto3FileExtensions;
-  FileDescriptorProto file;
-
-  EXPECT_FALSE(file.options().HasExtension(Proto3FileExtensions::singular_int));
-  EXPECT_EQ(file.options().GetExtension(Proto3FileExtensions::singular_int), 0);
-
-  file.mutable_options()->SetExtension(Proto3FileExtensions::singular_int, 1);
-
-  EXPECT_TRUE(file.options().HasExtension(Proto3FileExtensions::singular_int));
-  EXPECT_EQ(file.options().GetExtension(Proto3FileExtensions::singular_int), 1);
-}
-
 TEST(ExtensionSetTest, BoolExtension) {
   unittest::TestAllExtensions msg;
   uint8_t wire_bytes[2] = {13 * 8, 42 /* out of bounds payload for bool */};
   EXPECT_TRUE(msg.ParseFromArray(wire_bytes, 2));
-  EXPECT_TRUE(msg.GetExtension(proto2_unittest::optional_bool_extension));
+  EXPECT_TRUE(msg.GetExtension(protobuf_unittest::optional_bool_extension));
 }
 
 TEST(ExtensionSetTest, ConstInit) {
@@ -1421,46 +1338,7 @@ TEST(ExtensionSetTest, ConstInit) {
   EXPECT_EQ(set.NumExtensions(), 0);
 }
 
-// Make sure that is_cleared is set correctly for repeated fields.
-TEST(ExtensionSetTest, NumExtensionsWithRepeatedFields) {
-  unittest::TestAllExtensions msg;
-  ExtensionSet set;
-  const auto* desc =
-      unittest::TestAllExtensions::descriptor()->file()->FindExtensionByName(
-          "repeated_int32_extension");
-  ASSERT_NE(desc, nullptr);
-  set.MutableRawRepeatedField(desc->number(), WireFormatLite::TYPE_INT32, false,
-                              desc);
-  EXPECT_EQ(set.NumExtensions(), 1);
-}
-
-TEST(ExtensionSetTest, ExtensionSetSpaceUsed) {
-  unittest::TestAllExtensions msg;
-  size_t l = msg.SpaceUsedLong();
-  msg.SetExtension(unittest::optional_int32_extension, 100);
-  unittest::TestAllExtensions msg2(msg);
-  size_t l2 = msg2.SpaceUsedLong();
-  msg.ClearExtension(unittest::optional_int32_extension);
-  unittest::TestAllExtensions msg3(msg);
-  size_t l3 = msg3.SpaceUsedLong();
-  EXPECT_TRUE((l2 - l) > (l3 - l));
-}
-
-TEST(ExtensionSetTest, Descriptor) {
-  EXPECT_EQ(
-      GetExtensionReflection(unittest::optional_int32_extension),
-      unittest::TestAllExtensions::descriptor()->file()->FindExtensionByName(
-          "optional_int32_extension"));
-  EXPECT_NE(GetExtensionReflection(unittest::optional_int32_extension),
-            nullptr);
-  EXPECT_EQ(GetExtensionReflection(pb::cpp),
-            pb::CppFeatures::descriptor()->file()->FindExtensionByName("cpp"));
-  EXPECT_NE(GetExtensionReflection(pb::cpp), nullptr);
-}
-
 }  // namespace
 }  // namespace internal
 }  // namespace protobuf
 }  // namespace google
-
-#include "google/protobuf/port_undef.inc"

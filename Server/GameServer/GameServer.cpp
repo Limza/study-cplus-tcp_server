@@ -4,9 +4,9 @@
 #include "Service.h"
 #include "GameSession.h"
 #include "GameSessionManager.h"
-#include "BufferWriter.h"
 #include "ServerPacketHandler.h"
 #include <tchar.h>
+#include "Protocol.pb.h"
 
 using namespace std;
 
@@ -40,21 +40,30 @@ int main()
 			});
 	}
 
-	char sendData1[1000] = "가";
-	char sendData2[1000] = u8"가";
 	WCHAR sendData3[1000] = L"가";
-	TCHAR sendData4[1000] = _T("가");
 
 	while (true)
 	{
-		const std::vector<BuffData> buffs{
-			{.buffId = 100, .remainTime = 1.5f },
-			{.buffId = 200, .remainTime = 2.3f },
-			{.buffId = 300, .remainTime = 0.7f },
-		};
-		const SendBufferRef sendBuffer =
-			ServerPacketHandler::Make_S_TEST(1001, 100, 10
-				, buffs, L"안녕하세요");
+		Protocol::S_TEST pkt;
+		pkt.set_id(1000);
+		pkt.set_hp(100);
+		pkt.set_attack(10);
+
+		{
+			Protocol::BuffData* data = pkt.add_buffs();
+			data->set_buffid(100);
+			data->set_remaintime(1.2f);
+			data->add_victims(4000);
+		}
+		{
+			Protocol::BuffData* data = pkt.add_buffs();
+			data->set_buffid(200);
+			data->set_remaintime(2.5f);
+			data->add_victims(1000);
+			data->add_victims(2000);
+		}
+
+		SendBufferRef sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
 
 		GSessionManager.Broadcast(sendBuffer);
 

@@ -2,6 +2,7 @@
 #include "ClientPacketHandler.h"
 
 #include "BufferReader.h"
+#include "Protocol.pb.h"
 
 using namespace std;
 
@@ -19,56 +20,25 @@ void ClientPacketHandler::HandlePacket(BYTE* buffer, const int32 len)
 	}
 }
 
-struct BuffData
+void ClientPacketHandler::Handle_S_TEST(const BYTE* buffer, const int32 len)
 {
-	uint64 buffId;
-	float remainTime;
-};
+	Protocol::S_TEST pkt;
 
-struct S_TEST
-{
-	uint64 id;
-	uint32 hp;
-	uint16 attack;
-	std::vector<BuffData> buffs;
-	wstring name;
-};
+	ASSERT_CRASH(pkt.ParseFromArray(buffer + sizeof(PacketHeader), len - sizeof(PacketHeader)));
 
-void ClientPacketHandler::Handle_S_TEST(BYTE* buffer, const int32 len)
-{
-	BufferReader br(buffer, len);
-	PacketHeader header;
-	br >> header;
+	cout << pkt.id() << " " << pkt.hp() << " " << pkt.attack() << endl;
 
-	uint64 id;
-	uint32 hp;
-	uint16 attack;
-	br >> id >> hp >> attack;
+	cout << "BUFSIZE : " << pkt.buffs_size() << endl;
 
-	std::cout << "ID : " << id << "HP : " << hp << "ATT : " << attack << '\n';
-
-	std::vector<BuffData> buffs;
-	uint16 buffCount;
-	br >> buffCount;
-	buffs.resize(buffCount);
-	for (int32 i = 0; i < buffCount; ++i)
+	for (auto& buf : pkt.buffs())
 	{
-		br >> buffs[i].buffId >> buffs[i].remainTime;
+		cout << "BUFFID : " << buf.buffid() << " REMAINTIME : " << buf.remaintime() << endl;
+		cout << "VICTIM SIZE : " << buf.victims_size() << endl;
+		for (auto& victim : buf.victims())
+		{
+			cout << "VICTIM : " << victim << endl;
+		}
+
+		cout << endl;
 	}
-
-	std::cout << "Buff Count : " << buffCount << '\n';
-	for (int32 i = 0; i < buffCount; ++i)
-	{
-		std::cout << "BuffInfo : " << buffs[i].buffId << " " << buffs[i].remainTime << '\n';
-	}
-
-	wstring name;
-	uint16 nameLen;
-	br >> nameLen;
-	name.resize(nameLen);
-
-	br.Read((void*)name.data(), nameLen * sizeof(WCHAR));
-
-	wcout.imbue(std::locale("kor"));
-	wcout << name << endl;
 }
