@@ -1,26 +1,16 @@
 ﻿#include "pch.h"
 #include "ServerPacketHandler.h"
 
-#include "BufferReader.h"
-#include "BufferWriter.h"
+PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
-using namespace std;
-
-void ServerPacketHandler::HandlePacket(BYTE* buffer, const int32 len)
+bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, const int32 len)
 {
-	BufferReader br(buffer, len);
-
-	PacketHeader header;
-	br.Peek(&header);
-
-	switch (header.id)
-	{
-	default:
-		break;
-	}
+	auto header = reinterpret_cast<PacketHeader*>(buffer);
+	// TODO: 잘못된 패킷 처리에 대한 Log
+	return false;
 }
 
-SendBufferRef ServerPacketHandler::MakeSendBuffer(const Protocol::S_TEST& pkt)
+bool Handle_S_TEST(PacketSessionRef& session, Protocol::S_TEST& pkt)
 {
-	return _MakeSendBuffer(pkt, S_TEST);
+	return true;
 }

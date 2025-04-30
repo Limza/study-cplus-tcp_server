@@ -1,3 +1,8 @@
+﻿// cppcoreguidelines 프로파일 무시
+#pragma warning(disable : 6385)
+
+
+
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
 // https://developers.google.com/protocol-buffers/

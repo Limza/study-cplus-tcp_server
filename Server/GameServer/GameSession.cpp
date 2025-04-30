@@ -21,7 +21,11 @@ void GameSession::OnDisconnected()
 
 void GameSession::OnRecvPacket(BYTE* buffer, const int32 len)
 {
-	ServerPacketHandler::HandlePacket(buffer, len);
+	auto session = PacketSessionRef();
+	auto header = reinterpret_cast<PacketHeader*>(buffer);
+
+	// TODO : packetId 대역 체크
+	ServerPacketHandler::HandlePacket(session, buffer, len);
 }
 
 void GameSession::OnSend(const int32 len)
