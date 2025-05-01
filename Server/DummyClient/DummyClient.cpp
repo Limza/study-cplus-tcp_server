@@ -2,8 +2,7 @@
 #include "Session.h"
 #include "Service.h"
 #include "ThreadManager.h"
-#include "BufferReader.h"
-#include "ClientPacketHandler.h"
+#include "ServerPacketHandler.h"
 
 using namespace std;
 
@@ -25,7 +24,9 @@ protected:
 
 	void OnRecvPacket(BYTE* buffer, const int32 len) override
 	{
-		ClientPacketHandler::HandlePacket(buffer, len);
+		auto session = GetPacketSessionRef();
+
+		ServerPacketHandler::HandlePacket(session, buffer, len);
 	}
 
 	void OnSend(const int32 len) override
@@ -41,6 +42,8 @@ protected:
 
 int main()
 {
+	ServerPacketHandler::Init();
+
 	this_thread::sleep_for(1s);
 
 	const ClientServiceRef service = MakeShared<ClientService>(
