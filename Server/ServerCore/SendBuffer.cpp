@@ -76,15 +76,11 @@ SendBufferRef SendBufferManager::Open(const uint32 size)
 		LSendBufferChunk->Reset();
 	}
 
-	std::cout << "FREE : " << LSendBufferChunk->FreeSize() << '\n';
-
 	return LSendBufferChunk->Open(size);
 }
 
 SendBufferChunkRef SendBufferManager::Pop()
 {
-	std::cout << "PopGlobal SendBufferChunk" << '\n';
-
 	{
 		WRITE_LOCK;
 		if (_sendBufferChunks.empty() == false)

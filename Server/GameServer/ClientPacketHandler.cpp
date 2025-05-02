@@ -27,7 +27,7 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 
 	{
 		const auto player = loginPkt.add_players();
-		//player->set_name("DB에서 긁어온 이름 1");
+		player->set_name(reinterpret_cast < const char*>(u8"DB에서 긁어온 이름 1"));
 		player->set_playertype(Protocol::PLAYER_TYPE_KNIGHT);
 
 		const auto playerRef = MakeShared<Player>();
@@ -41,7 +41,7 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 
 	{
 		const auto player = loginPkt.add_players();
-		//player->set_name("DB에서 긁어온 이름 2");
+		player->set_name(reinterpret_cast <const char*>(u8"DB에서 긁어온 이름 2"));
 		player->set_playertype(Protocol::PLAYER_TYPE_MAGE);
 
 		const auto playerRef = MakeShared<Player>();

@@ -52,7 +52,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777)
 		, MakeShared<IocpCore>()
 		, MakeShared<ServerSession>,
-		1);
+		100);
 
 	ASSERT_CRASH(service->Start());
 
@@ -68,7 +68,7 @@ int main()
 	}
 
 	Protocol::C_CHAT chatPkt;
-	//chatPkt.set_msg("Hello World !"); 이거 문자열 넣는데 이슈 있음, utf8로 안들어감
+	chatPkt.set_msg(reinterpret_cast<const char*>(u8"Hello world"));
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(chatPkt);
 
 	while (true)
