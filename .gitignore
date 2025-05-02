@@ -8,6 +8,7 @@
 # 빌드 출력 파일
 [Bb]in/
 [Oo]bj/
+*.pdb
 *.ilk
 *.idb
 *.exp
