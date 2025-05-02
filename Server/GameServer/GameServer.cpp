@@ -3,21 +3,10 @@
 #include "ThreadManager.h"
 #include "Service.h"
 #include "GameSession.h"
-#include "GameSessionManager.h"
 #include "ClientPacketHandler.h"
-#include <tchar.h>
 #include "Protocol.pb.h"
 
 using namespace std;
-
-class Player
-{
-public:
-	int32 hp = 0;
-	int32 attack = 0;
-	Player* target = nullptr;
-	vector<int32> buffs;
-};
 
 int main()
 {

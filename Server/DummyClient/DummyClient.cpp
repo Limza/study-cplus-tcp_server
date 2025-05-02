@@ -6,8 +6,6 @@
 
 using namespace std;
 
-char sendData[] = "Hello World";
-
 class ServerSession final : public PacketSession
 {
 public:
@@ -20,6 +18,10 @@ protected:
 	void OnConnected() override
 	{
 		// cout << "Connected To Server" << '\n';
+
+		const Protocol::C_LOGIN pkt;
+		auto sendBufferRef = ServerPacketHandler::MakeSendBuffer(pkt);
+		Send(sendBufferRef);
 	}
 
 	void OnRecvPacket(BYTE* buffer, const int32 len) override
@@ -64,5 +66,16 @@ int main()
 				}
 			});
 	}
+
+	Protocol::C_CHAT chatPkt;
+	//chatPkt.set_msg("Hello World !"); 이거 문자열 넣는데 이슈 있음, utf8로 안들어감
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(chatPkt);
+
+	while (true)
+	{
+		service->Broadcast(sendBuffer);
+		this_thread::sleep_for(1s);
+	}
+
 	GThreadManager->Join();
 }

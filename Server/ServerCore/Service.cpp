@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 
 #include "Service.h"
 
@@ -22,6 +22,17 @@ Service::~Service()
 
 void Service::CloseService()
 {
+}
+
+void Service::Broadcast(SendBufferRef sendBuffer)
+{
+	WRITE_LOCK;
+	for (const auto& session : _sessions)
+	{
+		if (session->IsConnected() == false)
+			continue;
+		session->Send(sendBuffer);
+	}
 }
 
 SessionRef Service::CreateSession()

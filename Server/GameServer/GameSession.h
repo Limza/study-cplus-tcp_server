@@ -16,5 +16,8 @@ protected:
 	void OnDisconnected() override;
 	void OnRecvPacket(BYTE* buffer, const int32 len) override;
 	void OnSend(const int32 len) override;
+
+public:
+	Vector<PlayerRef> _players;
 };
 

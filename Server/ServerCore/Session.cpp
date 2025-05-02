@@ -324,7 +324,7 @@ int32 PacketSession::OnRecv(BYTE* buffer, const int32 len)
 		if (dataSize < sizeof(PacketHeader))  // NOLINT(clang-diagnostic-sign-compare)
 			break;
 
-		const auto [size, id] = *(reinterpret_cast<PacketHeader*>(&buffer[processLen]));
+		const auto [size, _] = *(reinterpret_cast<PacketHeader*>(&buffer[processLen]));
 		if (dataSize < size)  // NOLINT(modernize-use-integer-sign-comparison)
 			break;
 

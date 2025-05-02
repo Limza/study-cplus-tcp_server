@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "NetAddress.h"
 #include <functional>
 
@@ -28,9 +28,8 @@ public:
 	virtual bool Start() = 0;
 	virtual void CloseService();
 
-public:
 	void		SetSessionFactory(const SessionFactory& func) { _sessionFactory = func; }
-
+	void		Broadcast(SendBufferRef sendBuffer);
 	SessionRef	CreateSession();
 	void		AddSession(SessionRef&& session);
 	void		ReleaseSession(SessionRef&& session);

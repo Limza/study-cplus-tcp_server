@@ -22,8 +22,6 @@ void GameSession::OnDisconnected()
 void GameSession::OnRecvPacket(BYTE* buffer, const int32 len)
 {
 	auto session = GetPacketSessionRef();
-
-	// TODO : packetId 대역 체크
 	ClientPacketHandler::HandlePacket(session, buffer, len);
 }
 
