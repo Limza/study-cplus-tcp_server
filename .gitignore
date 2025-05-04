@@ -26,6 +26,8 @@
 # 프로토 버프에 사용되는 파일들은 포함
 !Server/Common/Protobuf/assets/GetPackets.exe
 !Server/Common/Protobuf/assets/protoc.exe
+!Server/Lib/Libs/Protobuf/Debug/libprotobufd.lib
+!Server/Lib/Libs/Protobuf/Release/libprotobuf.lib
 
 # 빌드 캐시 및 임시파일
 *.tmp
