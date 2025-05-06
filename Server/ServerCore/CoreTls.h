@@ -1,9 +1,16 @@
-#pragma once
+ï»¿#pragma once
 #include <stack>
 
 extern thread_local uint32				LThreadId;
 
-// µ¥µå¶ô ÇÁ·ÎÆÄÀÏ·¯¿¡¼­ »ç¿ë, ¾²·¹µå¸¶´Ù Àâ°í ÀÖ´Â ¶ôÀ» ÃßÀû
+// ì´ë²ˆ í‹±ì´ ì™„ë£Œë˜ëŠ” ì‹œê°„
+extern thread_local uint64				LEndTickCount;
+
+// ë°ë“œë½ í”„ë¡œíŒŒì¼ëŸ¬ì—ì„œ ì‚¬ìš©, ì“°ë ˆë“œë§ˆë‹¤ ì¡ê³  ìˆëŠ” ë½ì„ ì¶”ì 
 extern thread_local std::stack<int32>	LLockStack;
 
+// í˜„ì¬ ì“°ë ˆë“œì—ì„œ ì‚¬ìš©ì¤‘ì¸ SendBufferChunk
 extern thread_local SendBufferChunkRef	LSendBufferChunk;
+
+// í˜„ì¬ ì‹¤í–‰í•˜ê³  ìˆëŠ” JobQueue ì¶”ì 
+extern thread_local class JobQueue*		LCurrentJobQueue;

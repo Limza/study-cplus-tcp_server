@@ -67,11 +67,12 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	// TODO: index 유효성 체크
 
 	PlayerRef player = gameSession->_players[index];
-	GRoom.Enter(player);
+
+	GRoom->DoAsync(&Room::Enter, player);
 
 	Protocol::S_ENTER_GAME enterGamePkt;
 	enterGamePkt.set_success(true);
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
+	const auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
 	player->ownerSession->Send(sendBuffer);
 
 	return true;
@@ -83,9 +84,9 @@ bool Handle_C_CHAT(PacketSessionRef& session, Protocol::C_CHAT& pkt)
 
 	Protocol::S_CHAT chatPkt;
 	chatPkt.set_msg(pkt.msg());
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(chatPkt);
+	const auto sendBuffer = ClientPacketHandler::MakeSendBuffer(chatPkt);
 
-	GRoom.Broadcast(sendBuffer);
+	GRoom->DoAsync(&Room::Broadcast, sendBuffer);
 
 	return true;
 }

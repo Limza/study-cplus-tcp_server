@@ -1,6 +1,8 @@
 ﻿#pragma once
+#include "JobQueue.h"
 
-class Room
+
+class Room : public JobQueue
 {
 public:
 	void Enter(PlayerRef player);
@@ -8,8 +10,7 @@ public:
 	void Broadcast(SendBufferRef sendBuffer);
 
 private:
-	USE_LOCK;
 	std::map<uint64, PlayerRef>		_players;
 };
 
-extern Room GRoom;
+extern std::shared_ptr<Room> GRoom;

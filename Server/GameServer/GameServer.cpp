@@ -5,8 +5,31 @@
 #include "GameSession.h"
 #include "ClientPacketHandler.h"
 #include "Protocol.pb.h"
+#include "Room.h"
+
+#include <functional>
 
 using namespace std;
+
+constexpr uint64 workerTick = 64;
+
+void DoWorkerJob(const ServerServiceRef& service)
+{
+	// NOTE : 쓰레드 들은 아래 일감을 순서대로	처리한다
+	// 1. 네트워크 처리
+	// 2. 글로벌 큐 확인
+
+	while (true)
+	{
+		LEndTickCount = ::GetTickCount64() + workerTick;
+
+		// 네트워크 입출력 처리 -> 인게임 로직까지(패킷 핸들러)
+		service->GetIocpCore()->Dispatch(10);
+
+		// 글로벌 큐
+		ThreadManager::DoGlobalQueueWork();
+	}
+}
 
 int main()
 {
@@ -22,14 +45,13 @@ int main()
 
 	for (int32 i = 0; i < 5; ++i)
 	{
-		GThreadManager->Launch([=]()
+		GThreadManager->Launch([&service]()
 			{
-				while (true)
-				{
-					service->GetIocpCore()->Dispatch();
-				}
+				DoWorkerJob(service);
 			});
 	}
+
+	DoWorkerJob(service);
 
 	GThreadManager->Join();
 }

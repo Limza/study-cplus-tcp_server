@@ -1,7 +1,9 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ThreadManager.h"
 #include "CoreTls.h"
 #include "CoreGlobal.h"
+#include "GlobalQueue.h"
+#include "JobQueue.h"
 
 using namespace std;
 
@@ -48,4 +50,20 @@ void ThreadManager::InitTls()
 void ThreadManager::DestroyTls()
 {
 
+}
+
+void ThreadManager::DoGlobalQueueWork()
+{
+	while (true)
+	{
+		uint64 now = ::GetTickCount64();
+		if (now > LEndTickCount)
+			break;
+
+		auto jobQueue = GGlobalQueue->Pop();
+		if (jobQueue == nullptr)
+			break;
+
+		jobQueue->Execute();
+	}
 }

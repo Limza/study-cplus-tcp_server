@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <thread>
 #include <functional>
@@ -17,6 +17,8 @@ public:
 
 	static void InitTls();
 	static void DestroyTls();
+
+	static void DoGlobalQueueWork();
 
 private:
 	Mutex _lock;
