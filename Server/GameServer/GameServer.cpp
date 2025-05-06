@@ -43,7 +43,8 @@ int main()
 
 	ASSERT_CRASH(service->Start());
 
-	for (int32 i = 0; i < 5; ++i)
+	const uint32 maxThread = std::thread::hardware_concurrency();
+	for (uint32 i = 0; i < maxThread; ++i)
 	{
 		GThreadManager->Launch([&service]()
 			{
