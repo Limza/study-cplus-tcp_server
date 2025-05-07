@@ -7,6 +7,6 @@ public:
 	uint64					playerId = 0;
 	std::string				name;
 	Protocol::PlayerType	playerType = Protocol::PlayerType::PLAYER_TYPE_NONE;
-	GameSessionRef			ownerSession; // TODO : Cycle 순환 참조
+	GameSessionRef			ownerSession;
 };
 

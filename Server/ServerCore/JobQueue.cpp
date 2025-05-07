@@ -2,7 +2,7 @@
 #include "JobQueue.h"
 #include "GlobalQueue.h"
 
-void JobQueue::Push(JobRef&& job)
+void JobQueue::Push(JobRef job, bool pushOnly)
 {
 	// NOTE:아래 count를 먼저 올리고 Push 하는 순서 지켜야 한다
 	// job을 먼저 Push하면 Execute에서 jobCount를 sub 할 때 잘못된 결과가 나올 수 있다
@@ -13,14 +13,14 @@ void JobQueue::Push(JobRef&& job)
 	if (prevCount == 0)
 	{
 		// tls 에 실행중인 잡큐가 없다면 실행한다
-		if (LCurrentJobQueue ==nullptr)
+		if (LCurrentJobQueue == nullptr && pushOnly == false)
 		{
 			Execute();
 		}
 		else
 		{
 			// 이미 이 쓰레드에서 잡큐가 돌고 있다면
-			// 여유 있는 다른 쓰레드가 실행하도록 GlobalQueue에 Push
+			// 여유 있는 다른 쓰레드가 실행하도록 GlobalQueue에 넘긴다
 			GGlobalQueue->Push(shared_from_this());
 		}
 	}

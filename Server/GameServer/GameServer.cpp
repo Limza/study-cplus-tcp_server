@@ -11,6 +11,7 @@
 
 using namespace std;
 
+constexpr uint32 iocpTimeoutMs = 10;
 constexpr uint64 workerTick = 64;
 
 void DoWorkerJob(const ServerServiceRef& service)
@@ -24,7 +25,10 @@ void DoWorkerJob(const ServerServiceRef& service)
 		LEndTickCount = ::GetTickCount64() + workerTick;
 
 		// 네트워크 입출력 처리 -> 인게임 로직까지(패킷 핸들러)
-		service->GetIocpCore()->Dispatch(10);
+		service->GetIocpCore()->Dispatch(iocpTimeoutMs);
+
+		// 예약된 일감 처리
+		ThreadManager::DistributeReservedJobs();
 
 		// 글로벌 큐
 		ThreadManager::DoGlobalQueueWork();
@@ -33,6 +37,9 @@ void DoWorkerJob(const ServerServiceRef& service)
 
 int main()
 {
+	GRoom->DoTimer(1000, [] { cout << "Hello 1000" << endl; });
+	GRoom->DoTimer(2000, [] { cout << "Hello 2000" << endl; });
+	GRoom->DoTimer(3000, [] { cout << "Hello 3000" << endl; });
 	ClientPacketHandler::Init();
 
 	const ServerServiceRef service = MakeShared<ServerService>(
